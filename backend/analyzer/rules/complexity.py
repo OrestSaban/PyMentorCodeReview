@@ -3,38 +3,42 @@ from typing import List
 from ..models import Finding, Category, Severity
 from .base import Rule
 
-class ComplexityRule(Rule):
+class NestedIfTooDeepRule(Rule):
+    id = "nested-if-too-deep"
+    title = "Deeply Nested If Statements"
+    category = Category.COMPLEXITY
+    severity = Severity.WARNING
+
     def analyze(self, tree: ast.AST) -> List[Finding]:
         findings = []
         
-        def check_nesting(node, depth, max_depth):
-            if isinstance(node, ast.If):
-                if depth > max_depth:
+        class IfDepthVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.current_depth = 0
+                
+            def visit_If(self, node):
+                self.current_depth += 1
+                if self.current_depth > 2:
                     findings.append(
                         Finding(
-                            id="nested-if-too-deep",
-                            title="Too Much Nesting",
-                            category=Category.COMPLEXITY,
-                            severity=Severity.WARNING,
+                            id=NestedIfTooDeepRule.id,
+                            title=NestedIfTooDeepRule.title,
+                            category=NestedIfTooDeepRule.category,
+                            severity=NestedIfTooDeepRule.severity,
                             line_number=node.lineno,
-                            explanation="This 'if' statement is nested very deeply. Heavily nested code is hard to read and usually indicates that the logic could be simplified.",
-                            suggestion="Try to return early from the function, combine conditions using 'and' / 'or', or extract the nested logic into its own helper function.",
+                            explanation="This 'if' statement is nested deeply inside other 'if' statements. When code leans too far to the right, it becomes harder to read because you have to remember many different conditions at the same time.",
+                            suggestion="Try to return early if a condition fails, or combine related conditions using the 'and' keyword. This keeps your code closer to the left margin.",
+                            example="if not valid:\n    return\nif ready:\n    do_stuff()  # Good"
                         )
                     )
-                for child in node.body:
-                    check_nesting(child, depth + 1, max_depth)
-                for child in node.orelse:
-                    # 'elif' is technically an 'if' inside 'orelse' in AST, but it doesn't add logical indentation depth conceptually for beginners.
-                    # However, to keep it simple, we'll increment for pure nesting or handle 'elif' separately.
-                    if isinstance(child, ast.If):
-                        check_nesting(child, depth, max_depth) # 'elif' does not increase visual depth
-                    else:
-                        check_nesting(child, depth + 1, max_depth)
-            else:
-                for child in ast.iter_child_nodes(node):
-                    check_nesting(child, depth, max_depth)
-        
-        for node in ast.iter_child_nodes(tree):
-            check_nesting(node, 1, 2)
-            
+                self.generic_visit(node)
+                self.current_depth -= 1
+                
+            def visit_FunctionDef(self, node):
+                old_depth = self.current_depth
+                self.current_depth = 0
+                self.generic_visit(node)
+                self.current_depth = old_depth
+                
+        IfDepthVisitor().visit(tree)
         return findings

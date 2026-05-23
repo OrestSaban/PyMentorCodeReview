@@ -3,40 +3,53 @@ from typing import List
 from ..models import Finding, Category, Severity
 from .base import Rule
 
-class LengthRule(Rule):
+class FunctionTooLongRule(Rule):
+    id = "function-too-long"
+    title = "Function is Too Long"
+    category = Category.MAINTAINABILITY
+    severity = Severity.WARNING
+
     def analyze(self, tree: ast.AST) -> List[Finding]:
         findings = []
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
-                # 3. Detect functions longer than 30 lines
-                if hasattr(node, 'end_lineno') and hasattr(node, 'lineno'):
+                if hasattr(node, 'end_lineno') and node.end_lineno and node.lineno:
                     length = node.end_lineno - node.lineno
                     if length > 30:
                         findings.append(
                             Finding(
-                                id="function-too-long",
-                                title="Function is Too Long",
-                                category=Category.MAINTAINABILITY,
-                                severity=Severity.WARNING,
+                                id=self.id,
+                                title=self.title,
+                                category=self.category,
+                                severity=self.severity,
                                 line_number=node.lineno,
-                                explanation=f"The function '{node.name}' is {length} lines long. Long functions are harder to read, test, and debug.",
-                                suggestion="Try splitting this function into smaller, more focused helper functions. A good rule of thumb is keeping functions under 30 lines.",
+                                explanation=f"This function is {length} lines long. While it works, long functions can be a bit tricky to read and test because they usually try to do many different things at once.",
+                                suggestion="Consider breaking this function down into 2 or 3 smaller helper functions. Let each small function handle just one specific task.",
                             )
                         )
-                
-                # 4. Detect functions with too many parameters (> 4)
-                # Count regular args and kwonlyargs
-                num_params = len(node.args.args) + len(node.args.kwonlyargs)
-                if num_params > 4:
+        return findings
+
+class TooManyParametersRule(Rule):
+    id = "too-many-parameters"
+    title = "Too Many Parameters"
+    category = Category.COMPLEXITY
+    severity = Severity.WARNING
+
+    def analyze(self, tree: ast.AST) -> List[Finding]:
+        findings = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                num_args = len(node.args.args)
+                if num_args > 4:
                     findings.append(
                         Finding(
-                            id="too-many-parameters",
-                            title="Too Many Parameters",
-                            category=Category.COMPLEXITY,
-                            severity=Severity.WARNING,
+                            id=self.id,
+                            title=self.title,
+                            category=self.category,
+                            severity=self.severity,
                             line_number=node.lineno,
-                            explanation=f"The function '{node.name}' takes {num_params} arguments, which can be hard to remember and use correctly.",
-                            suggestion="Consider grouping related parameters into a single object (like a dictionary, dataclass, or a regular class).",
+                            explanation=f"This function takes {num_args} parameters. When a function needs this much information to work, it might be doing too many tasks at once. It also makes it easier to accidentally pass the wrong data.",
+                            suggestion="See if you can group related parameters into a single structure (like a dictionary or dataclass), or break the function into smaller pieces.",
                         )
                     )
         return findings
