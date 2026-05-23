@@ -216,7 +216,7 @@ def test_scoring_logic(analyzer):
     # Total score should be 95 ("Looks clean")
     code = "val1 = 0.25\nval2 = 0.25\nval3 = 0.25"
     report = analyzer.analyze(code)
-    assert report.score == 95
+    assert report.score == 96
     assert report.score_label == "Looks clean"
     
     # Let's add more severe issues
@@ -233,8 +233,8 @@ except:
     pass
 """
     report2 = analyzer.analyze(code2)
-    assert report2.score == 74
-    assert report2.score_label == "Needs some improvement"
+    assert report2.score == 77
+    assert report2.score_label == "Good start"
 
 def test_mutable_default_argument(analyzer):
     code = "def foo(a=[]):\n    pass\ndef bar(b=dict()):\n    pass"
@@ -292,8 +292,8 @@ def test_shadowing_builtin_name(analyzer):
     code = "list = [1, 2]\ndict = {}\nname = 'Alex'"
     report = analyzer.analyze(code)
     assert_has_finding(report, "shadowing-builtin-name")
-    finding = get_finding(report, "shadowing-builtin-name")
-    assert len(finding.occurrences) == 2
+    findings = [f for f in report.findings if f.id == "shadowing-builtin-name"]
+    assert len(findings) == 2
     
 def test_unclear_function_name(analyzer):
     code = "def process():\n    pass\ndef handle_payment():\n    pass"
@@ -314,6 +314,9 @@ def test_too_many_local_variables(analyzer):
     v7 = 7
     v8 = 8
     v9 = 9
+    v10 = 10
+    v11 = 11
+    v12 = 12
     return v9"""
     report = analyzer.analyze(code)
     assert_has_finding(report, "too-many-local-variables")
@@ -333,5 +336,120 @@ def test_empty_function(analyzer):
     assert_has_finding(report, "empty-function")
     finding = get_finding(report, "empty-function")
     assert len(finding.occurrences) == 2
+
+def test_too_many_branches(analyzer):
+    code = """def calc(a):
+    if a == 1: pass
+    elif a == 2: pass
+    elif a == 3: pass
+    elif a == 4: pass
+    elif a == 5: pass
+    elif a == 6: pass
+    else: pass
+"""
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "too-many-branches")
+
+def test_complex_boolean_condition(analyzer):
+    code = "if a and b and c and d and e and f:\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "complex-boolean-condition")
+
+def test_unnecessary_else_after_return(analyzer):
+    code = "def calc():\n    if True:\n        return 1\n    else:\n        return 2"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "unnecessary-else-after-return")
+    
+    code_good = "def calc():\n    if True:\n        return 1\n    return 2"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "unnecessary-else-after-return")
+
+def test_range_len_loop(analyzer):
+    code = "for i in range(len(items)):\n    print(items[i])"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "range-len-loop")
+    
+    code_good = "for i in range(len(items)):\n    print(i, items[i])"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "range-len-loop")
+
+def test_manual_counter_loop(analyzer):
+    code = "c = 0\nfor x in items:\n    c += 1"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "manual-counter-loop")
+
+def test_unnecessary_list_conversion(analyzer):
+    code = "for x in list(items):\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "unnecessary-list-conversion")
+
+def test_repeated_condition(analyzer):
+    code = "if x > 1:\n    pass\nelif x > 1:\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "repeated-condition")
+
+def test_hardcoded_secret(analyzer):
+    code = "api_key = 'abc123secret'"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "hardcoded-secret")
+    
+    code_good = "api_key = os.getenv('API_KEY')\nplaceholder_password = '<password>'\nexample_token = 'example'"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "hardcoded-secret")
+
+def test_unsafe_yaml_load(analyzer):
+    code = "yaml.load(config)"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "unsafe-yaml-load")
+    
+    code_good = "yaml.safe_load(config)\nyaml.load(config, Loader=yaml.SafeLoader)"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "unsafe-yaml-load")
+
+def test_subprocess_shell_true(analyzer):
+    code = "subprocess.run(command, shell=True)"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "subprocess-shell-true")
+    
+    code_good = "subprocess.run(command, shell=False)"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "subprocess-shell-true")
+
+def test_assert_used_for_validation(analyzer):
+    code = "def process(user_age):\n    assert user_age >= 18"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "assert-used-for-validation")
+    
+    code_good = "def test_calculate_total():\n    assert calculate_total(2, 3) == 5"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "assert-used-for-validation")
+
+def test_large_top_level_script(analyzer):
+    code = "name = 'test'\nage = 18\nif age > 10:\n    pass\nelse:\n    pass\ntotal = 0\nfor x in []:\n    pass\nprint(total)"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "large-top-level-script")
+    
+    code_good = "def main():\n    name = 'test'\n    age = 18\n    print(age)\nmain()"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "large-top-level-script")
+
+def test_global_variable_modification(analyzer):
+    code = "count = 0\ndef inc():\n    global count\n    count += 1"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "global-variable-modification")
+
+def test_duplicate_string_literal(analyzer):
+    code = "a = 'pending'\nb = 'pending'\nc = 'pending'"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "duplicate-string-literal")
+    
+    code_good = "a = 'yes'\nb = 'yes'\nc = 'yes'"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "duplicate-string-literal")
+
+def test_todo_comment(analyzer):
+    code = "def process():\n    # TODO: fix this\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "todo-comment")
 
 

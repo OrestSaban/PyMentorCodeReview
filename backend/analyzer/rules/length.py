@@ -72,18 +72,31 @@ class TooManyLocalVariablesRule(BaseRule):
         for node in ast.walk(context.tree):
             if isinstance(node, ast.FunctionDef):
                 locals_set = set()
-                for child in ast.walk(node):
-                    if isinstance(child, ast.Assign):
-                        for target in child.targets:
+                
+                class LocalVisitor(ast.NodeVisitor):
+                    def visit_FunctionDef(self, n):
+                        if n is not node: return
+                        self.generic_visit(n)
+                    def visit_AsyncFunctionDef(self, n):
+                        if n is not node: return
+                        self.generic_visit(n)
+                    def visit_ClassDef(self, n):
+                        return
+                    def visit_Assign(self, n):
+                        for target in n.targets:
                             if isinstance(target, ast.Name):
                                 locals_set.add(target.id)
                             elif isinstance(target, (ast.Tuple, ast.List)):
                                 for elt in target.elts:
                                     if isinstance(elt, ast.Name):
                                         locals_set.add(elt.id)
-                    elif isinstance(child, ast.AnnAssign):
-                        if isinstance(child.target, ast.Name):
-                            locals_set.add(child.target.id)
+                        self.generic_visit(n)
+                    def visit_AnnAssign(self, n):
+                        if isinstance(n.target, ast.Name):
+                            locals_set.add(n.target.id)
+                        self.generic_visit(n)
+                        
+                LocalVisitor().visit(node)
                 
                 arg_names = {a.arg for a in node.args.args + node.args.kwonlyargs}
                 if node.args.vararg: arg_names.add(node.args.vararg.arg)
@@ -91,7 +104,7 @@ class TooManyLocalVariablesRule(BaseRule):
                 
                 true_locals = locals_set - arg_names
                 
-                if len(true_locals) > 8:
+                if len(true_locals) > 10:
                     snippet = context.lines[node.lineno - 1].strip() if 0 < node.lineno <= len(context.lines) else ""
                     findings.append(
                         Finding(

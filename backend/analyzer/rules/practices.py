@@ -405,12 +405,33 @@ class MissingReturnValueRule(BaseRule):
                 if name.startswith(prefixes):
                     has_return_val = False
                     has_logic = False
-                    for child in ast.walk(node):
-                        if isinstance(child, ast.Return) and child.value is not None:
-                            has_return_val = True
-                            break
-                        if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.BinOp, ast.Call)):
-                            has_logic = True
+                    
+                    class MissingReturnVisitor(ast.NodeVisitor):
+                        def visit_FunctionDef(self, n):
+                            if n is not node: return
+                            self.generic_visit(n)
+                        def visit_AsyncFunctionDef(self, n):
+                            if n is not node: return
+                            self.generic_visit(n)
+                        def visit_ClassDef(self, n):
+                            return
+                        def visit_Return(self, n):
+                            nonlocal has_return_val
+                            if n.value is not None:
+                                has_return_val = True
+                            self.generic_visit(n)
+                        def visit_Assign(self, n):
+                            nonlocal has_logic; has_logic = True; self.generic_visit(n)
+                        def visit_AnnAssign(self, n):
+                            nonlocal has_logic; has_logic = True; self.generic_visit(n)
+                        def visit_AugAssign(self, n):
+                            nonlocal has_logic; has_logic = True; self.generic_visit(n)
+                        def visit_Expr(self, n):
+                            if isinstance(n.value, ast.Call):
+                                nonlocal has_logic; has_logic = True
+                            self.generic_visit(n)
+                            
+                    MissingReturnVisitor().visit(node)
                             
                     if has_logic and not has_return_val:
                         if hasattr(node, 'lineno'):
@@ -509,10 +530,26 @@ class InconsistentReturnRule(BaseRule):
         all_lines = set()
         
         def has_return_with_value(node):
-            for child in ast.walk(node):
-                if isinstance(child, ast.Return) and child.value is not None:
-                    return True
-            return False
+            class ReturnVisitor(ast.NodeVisitor):
+                def __init__(self):
+                    self.found = False
+                def visit_FunctionDef(self, n):
+                    if n is not node:
+                        return # don't visit nested functions
+                    self.generic_visit(n)
+                def visit_AsyncFunctionDef(self, n):
+                    if n is not node:
+                        return
+                    self.generic_visit(n)
+                def visit_ClassDef(self, n):
+                    return
+                def visit_Return(self, n):
+                    if n.value is not None:
+                        self.found = True
+            
+            v = ReturnVisitor()
+            v.visit(node)
+            return v.found
 
         def always_returns(stmts):
             if not stmts:
@@ -605,6 +642,234 @@ class EmptyFunctionRule(BaseRule):
                     explanation="This function contains only 'pass' or '...'. It acts as a placeholder that does nothing.",
                     suggestion="While placeholders are fine for planning, you should implement the logic or remove the function before finalizing your code.",
                     example="def calculate_total():\n    pass  # Bad"
+                )
+            )
+        return findings
+
+class RangeLenLoopRule(BaseRule):
+    id = "range-len-loop"
+    title = "Range Len Loop"
+    category = Category.BEST_PRACTICES
+    severity = Severity.INFO
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.For):
+                if isinstance(node.target, ast.Name):
+                    index_name = node.target.id
+                    iter_node = node.iter
+                    if isinstance(iter_node, ast.Call) and getattr(iter_node.func, 'id', '') == 'range' and len(iter_node.args) == 1:
+                        len_call = iter_node.args[0]
+                        if isinstance(len_call, ast.Call) and getattr(len_call.func, 'id', '') == 'len' and len(len_call.args) == 1:
+                            if isinstance(len_call.args[0], ast.Name):
+                                collection_name = len_call.args[0].id
+                                
+                                class UsageVisitor(ast.NodeVisitor):
+                                    def __init__(self):
+                                        self.bad_usage = False
+                                        self.good_usage = False
+                                    def visit_Subscript(self, sub_node):
+                                        if isinstance(sub_node.value, ast.Name) and sub_node.value.id == collection_name:
+                                            if isinstance(sub_node.slice, ast.Name) and sub_node.slice.id == index_name:
+                                                self.good_usage = True
+                                                return
+                                        self.generic_visit(sub_node)
+                                    def visit_Name(self, name_node):
+                                        if name_node.id == index_name and isinstance(name_node.ctx, ast.Load):
+                                            self.bad_usage = True
+                                
+                                usage = UsageVisitor()
+                                for stmt in node.body:
+                                    usage.visit(stmt)
+                                    
+                                if usage.good_usage and not usage.bad_usage:
+                                    if hasattr(node, 'lineno'):
+                                        lineno = node.lineno
+                                        col = node.col_offset
+                                        all_lines.add(lineno)
+                                        snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                                        occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="Python allows direct iteration over list items. Using range(len(...)) is sometimes needed, but often makes beginner code more complicated than necessary.",
+                    suggestion="Instead of 'for i in range(len(items)):', you can write 'for item in items:' to get the values directly.",
+                )
+            )
+        return findings
+
+class ManualCounterLoopRule(BaseRule):
+    id = "manual-counter-loop"
+    title = "Manual Counter in Loop"
+    category = Category.BEST_PRACTICES
+    severity = Severity.INFO
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.For):
+                for stmt in ast.walk(node):
+                    if isinstance(stmt, ast.AugAssign) and isinstance(stmt.op, ast.Add):
+                        if isinstance(stmt.value, ast.Constant) and stmt.value.value == 1:
+                            if isinstance(stmt.target, ast.Name):
+                                if hasattr(node, 'lineno'):
+                                    lineno = node.lineno
+                                    col = node.col_offset
+                                    all_lines.add(lineno)
+                                    snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                                    occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet, value=stmt.target.id))
+                    elif isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name):
+                        target_name = stmt.targets[0].id
+                        if isinstance(stmt.value, ast.BinOp) and isinstance(stmt.value.op, ast.Add):
+                            left = stmt.value.left
+                            right = stmt.value.right
+                            is_inc = False
+                            if isinstance(left, ast.Name) and left.id == target_name and isinstance(right, ast.Constant) and right.value == 1:
+                                is_inc = True
+                            elif isinstance(right, ast.Name) and right.id == target_name and isinstance(left, ast.Constant) and left.value == 1:
+                                is_inc = True
+                            if is_inc:
+                                if hasattr(node, 'lineno'):
+                                    lineno = node.lineno
+                                    col = node.col_offset
+                                    all_lines.add(lineno)
+                                    snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                                    occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet, value=target_name))
+
+        if occurrences:
+            unique_occurrences = []
+            seen = set()
+            for occ in occurrences:
+                if occ.line not in seen:
+                    seen.add(occ.line)
+                    unique_occurrences.append(occ)
+            unique_occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=unique_occurrences,
+                    explanation="When you need both the position and the value in a loop, enumerate() is usually clearer than manually updating a counter.",
+                    suggestion="Try 'for index, item in enumerate(items):' instead of creating a counter variable and adding 1 to it.",
+                )
+            )
+        return findings
+
+class UnnecessaryListConversionRule(BaseRule):
+    id = "unnecessary-list-conversion"
+    title = "Unnecessary List Conversion"
+    category = Category.BEST_PRACTICES
+    severity = Severity.INFO
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            is_unnecessary = False
+            
+            if isinstance(node, ast.For):
+                if isinstance(node.iter, ast.Call) and getattr(node.iter.func, 'id', '') == 'list':
+                    if len(node.iter.args) == 1 and isinstance(node.iter.args[0], ast.Name):
+                        is_unnecessary = True
+                        
+            if isinstance(node, ast.Call) and getattr(node.func, 'id', '') == 'list':
+                if len(node.args) == 1 and isinstance(node.args[0], ast.List):
+                    is_unnecessary = True
+                    
+            if is_unnecessary:
+                if hasattr(node, 'lineno'):
+                    lineno = node.lineno
+                    col = node.col_offset
+                    all_lines.add(lineno)
+                    snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                    occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="Calling list() is useful when converting another iterable or making a copy, but sometimes it adds noise without changing the result.",
+                    suggestion="Remove the list() call if you are just iterating over an existing list or declaring a new list.",
+                )
+            )
+        return findings
+
+class RepeatedConditionRule(BaseRule):
+    id = "repeated-condition"
+    title = "Repeated Condition"
+    category = Category.BEST_PRACTICES
+    severity = Severity.WARNING
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        def collect_if_chain(node, conditions):
+            if isinstance(node, ast.If):
+                cond_str = ast.dump(node.test)
+                conditions.append((cond_str, node))
+                if node.orelse and len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
+                    collect_if_chain(node.orelse[0], conditions)
+
+        visited_ifs = set()
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.If) and node not in visited_ifs:
+                conditions = []
+                collect_if_chain(node, conditions)
+                for _, n in conditions:
+                    visited_ifs.add(n)
+                
+                seen = set()
+                for cond_str, cond_node in conditions:
+                    if cond_str in seen:
+                        if hasattr(cond_node, 'lineno'):
+                            lineno = cond_node.lineno
+                            col = cond_node.col_offset
+                            all_lines.add(lineno)
+                            snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                            occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet))
+                    else:
+                        seen.add(cond_str)
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="A repeated condition usually means one branch can never be reached. This is often a copy-paste mistake.",
+                    suggestion="Check your if/elif chain to make sure each condition is unique.",
                 )
             )
         return findings

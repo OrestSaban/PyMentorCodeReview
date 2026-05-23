@@ -6,11 +6,20 @@ from .rules.naming import (
     ShadowingBuiltinNameRule, UnclearFunctionNameRule
 )
 from .rules.length import FunctionTooLongRule, TooManyParametersRule, TooManyLocalVariablesRule
-from .rules.complexity import NestedIfTooDeepRule
+from .rules.complexity import (
+    NestedIfTooDeepRule, TooManyBranchesRule, ComplexBooleanConditionRule, UnnecessaryElseAfterReturnRule
+)
 from .rules.practices import (
     PrintInFunctionRule, CompareBooleanRule, BareExceptRule, UseEvalRule, MagicNumberRule,
     MutableDefaultArgumentRule, UseExecRule, BroadExceptionRule, MissingReturnValueRule, UnusedLoopVariableRule,
-    InconsistentReturnRule, EmptyFunctionRule
+    InconsistentReturnRule, EmptyFunctionRule, RangeLenLoopRule, ManualCounterLoopRule,
+    UnnecessaryListConversionRule, RepeatedConditionRule
+)
+from .rules.safety import (
+    HardcodedSecretRule, UnsafeYamlLoadRule, SubprocessShellTrueRule, AssertUsedForValidationRule
+)
+from .rules.maintainability import (
+    LargeTopLevelScriptRule, GlobalVariableModificationRule, DuplicateStringLiteralRule, TodoCommentRule
 )
 
 class RuleRegistry:
@@ -26,6 +35,9 @@ class RuleRegistry:
             TooManyParametersRule,
             TooManyLocalVariablesRule,
             NestedIfTooDeepRule,
+            TooManyBranchesRule,
+            ComplexBooleanConditionRule,
+            UnnecessaryElseAfterReturnRule,
             PrintInFunctionRule,
             CompareBooleanRule,
             BareExceptRule,
@@ -37,7 +49,19 @@ class RuleRegistry:
             MissingReturnValueRule,
             UnusedLoopVariableRule,
             InconsistentReturnRule,
-            EmptyFunctionRule
+            EmptyFunctionRule,
+            RangeLenLoopRule,
+            ManualCounterLoopRule,
+            UnnecessaryListConversionRule,
+            RepeatedConditionRule,
+            HardcodedSecretRule,
+            UnsafeYamlLoadRule,
+            SubprocessShellTrueRule,
+            AssertUsedForValidationRule,
+            LargeTopLevelScriptRule,
+            GlobalVariableModificationRule,
+            DuplicateStringLiteralRule,
+            TodoCommentRule
         ]
 
     def get_all_rules(self) -> List[BaseRule]:

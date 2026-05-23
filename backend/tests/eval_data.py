@@ -131,6 +131,13 @@ EVALUATION_DATASET = [
         "expected_absent": []
     },
     {
+        "name": "Complex Boolean Condition",
+        "category": "isolated_rules",
+        "code": "def check(a, b, c, d, e, f):\n    if a and b and c and d and e and f:\n        pass\n",
+        "expected_present": ["complex-boolean-condition"],
+        "expected_absent": []
+    },
+    {
         "name": "Bare Except",
         "category": "isolated_rules",
         "code": "try:\n    do_work()\nexcept:\n    pass\n",
@@ -263,7 +270,7 @@ EVALUATION_DATASET = [
     {
         "name": "Too Many Local Variables",
         "category": "isolated_rules",
-        "code": "def calc():\n    a=1\n    b=2\n    c=3\n    d=4\n    e=5\n    f=6\n    g=7\n    h=8\n    i=9\n    return i\n",
+        "code": "def process():\n    a=1\n    b=2\n    c=3\n    d=4\n    e=5\n    f=6\n    g=7\n    h=8\n    i=9\n    j=10\n    k=11\n    l=12\n",
         "expected_present": ["too-many-local-variables"],
         "expected_absent": []
     },
@@ -273,5 +280,103 @@ EVALUATION_DATASET = [
         "code": "def process_order(order):\n    ...\n",
         "expected_present": ["empty-function"],
         "expected_absent": ["unclear-function-name"]
+    },
+    {
+        "name": "Too Many Branches",
+        "category": "isolated_rules",
+        "code": "def get_shipping(country):\n    if country == 'US':\n        return 10\n    elif country == 'CA':\n        return 12\n    elif country == 'UK':\n        return 15\n    elif country == 'DE':\n        return 13\n    elif country == 'FR':\n        return 14\n    else:\n        return 20\n",
+        "expected_present": ["too-many-branches"],
+        "expected_absent": []
+    },
+    {
+        "name": "Unnecessary Else After Return",
+        "category": "isolated_rules",
+        "code": "def check_age(age):\n    if age >= 18:\n        return 'adult'\n    else:\n        return 'minor'\n",
+        "expected_present": ["unnecessary-else-after-return"],
+        "expected_absent": []
+    },
+    {
+        "name": "Range Len Loop",
+        "category": "isolated_rules",
+        "code": "def print_items(items):\n    for i in range(len(items)):\n        print(items[i])\n",
+        "expected_present": ["range-len-loop"],
+        "expected_absent": []
+    },
+    {
+        "name": "Manual Counter Loop",
+        "category": "isolated_rules",
+        "code": "def print_names(names):\n    counter = 0\n    for name in names:\n        print(counter, name)\n        counter += 1\n",
+        "expected_present": ["manual-counter-loop"],
+        "expected_absent": []
+    },
+    {
+        "name": "Unnecessary List Conversion",
+        "category": "isolated_rules",
+        "code": "def process(items):\n    for item in list(items):\n        print(item)\n",
+        "expected_present": ["unnecessary-list-conversion"],
+        "expected_absent": []
+    },
+    {
+        "name": "Repeated Condition",
+        "category": "isolated_rules",
+        "code": "def get_grade(score):\n    if score > 90:\n        return 'A'\n    elif score > 90:\n        return 'Excellent'\n",
+        "expected_present": ["repeated-condition"],
+        "expected_absent": []
+    },
+    {
+        "name": "Hardcoded Secret",
+        "category": "isolated_rules",
+        "code": "api_key = 'ghp_123456789'\npassword = 'mypassword123'\n",
+        "expected_present": ["hardcoded-secret"],
+        "expected_absent": []
+    },
+    {
+        "name": "Unsafe Yaml Load",
+        "category": "isolated_rules",
+        "code": "import yaml\nconfig = yaml.load(config_file)\n",
+        "expected_present": ["unsafe-yaml-load"],
+        "expected_absent": []
+    },
+    {
+        "name": "Subprocess Shell True",
+        "category": "isolated_rules",
+        "code": "import subprocess\nsubprocess.run('ls -la', shell=True)\n",
+        "expected_present": ["subprocess-shell-true"],
+        "expected_absent": []
+    },
+    {
+        "name": "Assert Used For Validation",
+        "category": "isolated_rules",
+        "code": "def process_payment(amount):\n    assert amount > 0\n    return amount\n",
+        "expected_present": ["assert-used-for-validation"],
+        "expected_absent": []
+    },
+    {
+        "name": "Large Top Level Script",
+        "category": "isolated_rules",
+        "code": "name = input('Name: ')\nage = int(input('Age: '))\nif age >= 18:\n    print('Adult')\nelse:\n    print('Minor')\nprint(name)\ncount = 0\nfor x in range(10):\n    count += 1\n",
+        "expected_present": ["large-top-level-script"],
+        "expected_absent": []
+    },
+    {
+        "name": "Global Variable Modification",
+        "category": "isolated_rules",
+        "code": "count = 0\ndef inc():\n    global count\n    count += 1\n",
+        "expected_present": ["global-variable-modification"],
+        "expected_absent": []
+    },
+    {
+        "name": "Duplicate String Literal",
+        "category": "isolated_rules",
+        "code": "def check(status):\n    if status == 'pending':\n        print('pending')\n    return 'pending'\n",
+        "expected_present": ["duplicate-string-literal"],
+        "expected_absent": []
+    },
+    {
+        "name": "Todo Comment",
+        "category": "isolated_rules",
+        "code": "def process():\n    # TODO: fix this later\n    pass\n",
+        "expected_present": ["todo-comment"],
+        "expected_absent": []
     }
 ]

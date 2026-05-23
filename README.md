@@ -13,7 +13,7 @@ PyMentor Review is an educational code review assistant for beginner Python prog
 
 This project uses GitHub Actions for CI. Every push and pull request to the `main` branch triggers an automated workflow that:
 - Runs all `pytest` unit tests for the backend analyzer.
-- Runs the 25-case evaluation dataset (`run_evaluation.py`) to ensure 100% accuracy.
+- Runs the 54-case evaluation dataset (`run_evaluation.py`) to ensure 100% accuracy.
 - Checks the React frontend with `eslint` and attempts a production `vite build`.
 
 ## Prerequisites

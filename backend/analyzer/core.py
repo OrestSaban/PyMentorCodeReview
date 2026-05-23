@@ -51,18 +51,17 @@ class Analyzer:
                 print(f"Error running rule {rule.__class__.__name__}: {e}")
                 traceback.print_exc()
                 
-        # Calculate score (start at 100, deduct points)
         score = 100
         for f in all_findings:
             if f.severity == Severity.ERROR:
                 score -= 15
             elif f.severity == Severity.WARNING:
-                score -= 8
+                score -= 6
             elif f.severity == Severity.INFO:
-                score -= 3
+                score -= 2
                 
             if len(f.occurrences) > 1:
-                extra_penalty = min(5, len(f.occurrences) - 1)
+                extra_penalty = min(3, len(f.occurrences) - 1)
                 score -= extra_penalty
                 
         score = max(0, min(100, score))

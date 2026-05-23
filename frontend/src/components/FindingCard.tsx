@@ -24,7 +24,22 @@ const FRIENDLY_TITLES: Record<string, string> = {
   "unclear-function-name": "This function name is too generic",
   "inconsistent-return": "This function might accidentally return None",
   "too-many-local-variables": "Too many local variables",
-  "empty-function": "This function is empty"
+  "empty-function": "This function is empty",
+  "too-many-branches": "There are too many paths through this function",
+  "complex-boolean-condition": "This condition is very complex",
+  "unnecessary-else-after-return": "This 'else' block isn't needed",
+  "range-len-loop": "Consider using direct iteration",
+  "manual-counter-loop": "Use enumerate() instead of a manual counter",
+  "unnecessary-list-conversion": "Unnecessary list() conversion",
+  "repeated-condition": "Repeated condition in if/elif chain",
+  "hardcoded-secret": "Hardcoded secret detected",
+  "unsafe-yaml-load": "Unsafe YAML load detected",
+  "subprocess-shell-true": "Subprocess shell=True detected",
+  "assert-used-for-validation": "Avoid using assert for data validation",
+  "large-top-level-script": "Too much logic outside of functions",
+  "global-variable-modification": "Avoid changing global variables inside functions",
+  "duplicate-string-literal": "Duplicate string literal",
+  "todo-comment": "Review TODO comment"
 };
 
 export function FindingCard({ finding }: { finding: Finding }) {
