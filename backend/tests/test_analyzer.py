@@ -1,0 +1,184 @@
+import pytest
+from analyzer.core import Analyzer
+from analyzer.models import Category, Severity, AnalysisReport, Finding
+from typing import List
+
+@pytest.fixture
+def analyzer():
+    return Analyzer()
+
+# --- Test Helpers ---
+
+def assert_has_finding(report: AnalysisReport, finding_id: str):
+    assert any(f.id == finding_id for f in report.findings), f"Expected finding '{finding_id}' not found. Findings: {[f.id for f in report.findings]}"
+
+def assert_not_has_finding(report: AnalysisReport, finding_id: str):
+    assert not any(f.id == finding_id for f in report.findings), f"Unexpected finding '{finding_id}' was found."
+
+def get_finding(report: AnalysisReport, finding_id: str) -> Finding:
+    for f in report.findings:
+        if f.id == finding_id:
+            return f
+    raise ValueError(f"Finding '{finding_id}' not found.")
+
+# --- Evaluation Tests ---
+
+EVALUATION_SNIPPETS = [
+    {
+        "name": "Clean Code",
+        "code": """
+MAX_RETRIES = 5
+def connect(url: str, timeout: int = 10):
+    for i in range(MAX_RETRIES):
+        if try_connect(url, timeout):
+            return True
+    return False
+""",
+        "expected_present": [],
+        "expected_absent": ["magic-number", "unclear-variable-name", "too-many-parameters", "function-too-long", "nested-if-too-deep", "print-in-function"]
+    },
+    {
+        "name": "Beginner Mistakes",
+        "code": """
+def do_stuff():
+    x = 42
+    if x == True:
+        print(x)
+    
+    try:
+        y = eval("1 + 1")
+    except:
+        pass
+""",
+        "expected_present": ["unclear-variable-name", "compare-boolean", "print-in-function", "use-eval", "bare-except", "magic-number"],
+        "expected_absent": ["function-too-long"]
+    },
+    {
+        "name": "Data Structures & Simple Indexes",
+        "code": """
+def get_first_item():
+    items = [100, 200, 300, 400]
+    return items[0]
+""",
+        "expected_present": [],
+        "expected_absent": ["magic-number"] # 100 is allowed, 200/300/400 in list, 0 is allowed and in index
+    },
+    {
+        "name": "Deep Nesting",
+        "code": """
+def process():
+    if condition_a():
+        if condition_b():
+            if condition_c():
+                return 1
+    return 0
+""",
+        "expected_present": ["nested-if-too-deep"],
+        "expected_absent": ["magic-number"] # 1 and 0 are allowed magic numbers
+    },
+    {
+        "name": "Multiple Magic Numbers & Range",
+        "code": """
+def calculate():
+    for i in range(50):
+        tax = price * 0.25
+        discount = price * 0.1
+""",
+        "expected_present": ["magic-number"],
+        "expected_absent": ["unclear-variable-name"]
+    },
+    {
+        "name": "Top Level Function Call Magic Numbers",
+        "code": """
+MINIMUM_ORDER_TOTAL = 50
+
+def calculate_shipping_cost(order_total):
+    if order_total >= MINIMUM_ORDER_TOTAL:
+        return 0
+
+    return 10
+
+shipping_cost = calculate_shipping_cost(35)
+print(calculate_shipping_cost(35))
+""",
+        "expected_present": [],
+        "expected_absent": ["magic-number"]
+    }
+]
+
+@pytest.mark.parametrize("snippet", EVALUATION_SNIPPETS, ids=lambda s: s["name"])
+def test_evaluation_snippets(analyzer, snippet):
+    report = analyzer.analyze(snippet["code"])
+    for expected in snippet["expected_present"]:
+        assert_has_finding(report, expected)
+    for absent in snippet["expected_absent"]:
+        assert_not_has_finding(report, absent)
+
+# --- Unit Tests ---
+
+def test_syntax_error(analyzer):
+    code = "def foo(:\n    pass"
+    report = analyzer.analyze(code)
+    assert report.score < 100
+    assert_has_finding(report, "syntax-error")
+    finding = get_finding(report, "syntax-error")
+    assert finding.severity == Severity.ERROR
+
+def test_magic_numbers_grouped(analyzer):
+    code = """
+a = price * 0.25
+b = price * 0.25
+c = price * 0.15
+"""
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "magic-number")
+    finding = get_finding(report, "magic-number")
+    assert len(finding.line_numbers) == 3 # Should group all 3 lines
+    assert "0.25" in finding.explanation
+    assert "0.15" in finding.explanation
+
+def test_upper_case_constants_ignored(analyzer):
+    code = "TAX_RATE = 0.25\nDISCOUNT = 0.15"
+    report = analyzer.analyze(code)
+    assert_not_has_finding(report, "magic-number")
+
+def test_range_ignored(analyzer):
+    code = "for i in range(50):\n    pass"
+    report = analyzer.analyze(code)
+    assert_not_has_finding(report, "magic-number")
+
+def test_eval_detected(analyzer):
+    code = "x = eval('1 + 1')"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "use-eval")
+
+def test_bare_except_detected(analyzer):
+    code = "try:\n    pass\nexcept:\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "bare-except")
+
+def test_boolean_comparison_detected(analyzer):
+    code = "if is_valid == True:\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "compare-boolean")
+
+def test_unclear_variable_grouped(analyzer):
+    code = "x = 1\ny = 2\nx = 3"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "unclear-variable-name")
+    
+    # We should have two findings, one for 'x' (lines 1, 3) and one for 'y' (line 2)
+    # wait, get_finding returns the first one. Let's just manually inspect.
+    findings = [f for f in report.findings if f.id == "unclear-variable-name"]
+    assert len(findings) == 2
+    x_finding = next(f for f in findings if "'x'" in f.explanation)
+    assert len(x_finding.line_numbers) == 2
+    y_finding = next(f for f in findings if "'y'" in f.explanation)
+    assert len(y_finding.line_numbers) == 1
+
+def test_print_in_function_grouped(analyzer):
+    code = "def my_func():\n    print('a')\n    print('b')"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "print-in-function")
+    finding = get_finding(report, "print-in-function")
+    assert len(finding.line_numbers) == 2

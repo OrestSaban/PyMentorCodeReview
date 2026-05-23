@@ -1,0 +1,58 @@
+import { FileText } from 'lucide-react';
+import type { Finding } from '../types';
+import { SeverityBadge } from './SeverityBadge';
+
+const FRIENDLY_TITLES: Record<string, string> = {
+  "unclear-variable-name": "This name could be clearer",
+  "non-snake-case-function": "Function names are usually snake_case",
+  "function-too-long": "This function is getting a bit complex",
+  "too-many-parameters": "A lot of parameters here",
+  "nested-if-too-deep": "This logic is getting deeply nested",
+  "print-in-function": "Consider returning instead of printing",
+  "compare-boolean": "No need to compare with True/False",
+  "bare-except": "Careful with bare except blocks",
+  "use-eval": "Careful with eval()",
+  "magic-number": "This value may need a name",
+  "syntax-error": "Oops, there's a syntax error"
+};
+
+export function FindingCard({ finding }: { finding: Finding }) {
+  const hasMultipleLines = finding.line_numbers && finding.line_numbers.length > 0;
+  const title = FRIENDLY_TITLES[finding.id] || finding.title;
+  
+  return (
+    <div className={`finding-card ${finding.severity}`}>
+      <div className="finding-header">
+        <div className="finding-title-row">
+          <div className="finding-title">{title}</div>
+          <SeverityBadge severity={finding.severity} />
+        </div>
+        
+        {(hasMultipleLines || finding.line_number) && (
+          <div className="finding-lines">
+            <FileText size={14} />
+            {hasMultipleLines 
+              ? `Lines ${finding.line_numbers.join(', ')}`
+              : `Line ${finding.line_number}`}
+          </div>
+        )}
+      </div>
+      
+      <div className="finding-section">
+        <div className="finding-label">Why it matters</div>
+        <div className="finding-explanation">{finding.explanation}</div>
+      </div>
+      
+      <div className="finding-section">
+        <div className="finding-label">Try this</div>
+        <div className="finding-suggestion">{finding.suggestion}</div>
+      </div>
+      
+      {finding.example && (
+        <div className="finding-example">
+          {finding.example}
+        </div>
+      )}
+    </div>
+  );
+}
