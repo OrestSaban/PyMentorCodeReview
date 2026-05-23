@@ -496,3 +496,115 @@ class UnusedLoopVariableRule(BaseRule):
                 )
             )
         return findings
+
+class InconsistentReturnRule(BaseRule):
+    id = "inconsistent-return"
+    title = "Inconsistent Return"
+    category = Category.BEST_PRACTICES
+    severity = Severity.WARNING
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+        
+        def has_return_with_value(node):
+            for child in ast.walk(node):
+                if isinstance(child, ast.Return) and child.value is not None:
+                    return True
+            return False
+
+        def always_returns(stmts):
+            if not stmts:
+                return False
+            last_stmt = stmts[-1]
+            if isinstance(last_stmt, ast.Return):
+                return True
+            if isinstance(last_stmt, ast.Raise):
+                return True
+            if isinstance(last_stmt, ast.If):
+                return always_returns(last_stmt.body) and always_returns(last_stmt.orelse)
+            if isinstance(last_stmt, ast.While):
+                if isinstance(last_stmt.test, ast.Constant) and last_stmt.test.value is True:
+                    return True
+                return always_returns(last_stmt.body) and always_returns(last_stmt.orelse)
+            if isinstance(last_stmt, ast.For):
+                return always_returns(last_stmt.body) and always_returns(last_stmt.orelse)
+            if isinstance(last_stmt, ast.Try):
+                return always_returns(last_stmt.body) and all(always_returns(handler.body) for handler in last_stmt.handlers)
+            if isinstance(last_stmt, ast.With):
+                return always_returns(last_stmt.body)
+            return False
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.FunctionDef):
+                if has_return_with_value(node) and not always_returns(node.body):
+                    if hasattr(node, 'lineno'):
+                        lineno = node.lineno
+                        col = node.col_offset
+                        all_lines.add(lineno)
+                        snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                        occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet, value=node.name))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="This function sometimes returns a value, but in other cases (like if a condition isn't met), it implicitly returns None. This can lead to unexpected bugs when the caller expects a real value.",
+                    suggestion="Ensure every possible path through the function ends with an explicit 'return' statement.",
+                    example="def get_price(age):\n    if age < 18:\n        return 10\n    return 20  # Good"
+                )
+            )
+        return findings
+
+class EmptyFunctionRule(BaseRule):
+    id = "empty-function"
+    title = "Empty Function"
+    category = Category.BEST_PRACTICES
+    severity = Severity.INFO
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.FunctionDef):
+                is_empty = False
+                if len(node.body) == 1:
+                    stmt = node.body[0]
+                    if isinstance(stmt, ast.Pass):
+                        is_empty = True
+                    elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant) and stmt.value.value is Ellipsis:
+                        is_empty = True
+                        
+                if is_empty:
+                    if hasattr(node, 'lineno'):
+                        lineno = node.lineno
+                        col = node.col_offset
+                        all_lines.add(lineno)
+                        snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                        occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet, value=node.name))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="This function contains only 'pass' or '...'. It acts as a placeholder that does nothing.",
+                    suggestion="While placeholders are fine for planning, you should implement the logic or remove the function before finalizing your code.",
+                    example="def calculate_total():\n    pass  # Bad"
+                )
+            )
+        return findings

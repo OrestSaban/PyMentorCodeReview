@@ -5,11 +5,12 @@ from .rules.naming import (
     NonSnakeCaseVariableRule, ConstantNotUppercaseRule,
     ShadowingBuiltinNameRule, UnclearFunctionNameRule
 )
-from .rules.length import FunctionTooLongRule, TooManyParametersRule
+from .rules.length import FunctionTooLongRule, TooManyParametersRule, TooManyLocalVariablesRule
 from .rules.complexity import NestedIfTooDeepRule
 from .rules.practices import (
     PrintInFunctionRule, CompareBooleanRule, BareExceptRule, UseEvalRule, MagicNumberRule,
-    MutableDefaultArgumentRule, UseExecRule, BroadExceptionRule, MissingReturnValueRule, UnusedLoopVariableRule
+    MutableDefaultArgumentRule, UseExecRule, BroadExceptionRule, MissingReturnValueRule, UnusedLoopVariableRule,
+    InconsistentReturnRule, EmptyFunctionRule
 )
 
 class RuleRegistry:
@@ -23,6 +24,7 @@ class RuleRegistry:
             UnclearFunctionNameRule,
             FunctionTooLongRule,
             TooManyParametersRule,
+            TooManyLocalVariablesRule,
             NestedIfTooDeepRule,
             PrintInFunctionRule,
             CompareBooleanRule,
@@ -33,7 +35,9 @@ class RuleRegistry:
             UseExecRule,
             BroadExceptionRule,
             MissingReturnValueRule,
-            UnusedLoopVariableRule
+            UnusedLoopVariableRule,
+            InconsistentReturnRule,
+            EmptyFunctionRule
         ]
 
     def get_all_rules(self) -> List[BaseRule]:

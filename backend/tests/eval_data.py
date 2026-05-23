@@ -252,5 +252,26 @@ EVALUATION_DATASET = [
         "code": "def do_it():\n    pass\ndef handle_payment():\n    pass\n",
         "expected_present": ["unclear-function-name"],
         "expected_absent": []
+    },
+    {
+        "name": "Inconsistent Return",
+        "category": "isolated_rules",
+        "code": "def get_discount(age):\n    if age < 18:\n        return 0.2\n    if age > 65:\n        return 0.3\n",
+        "expected_present": ["inconsistent-return"],
+        "expected_absent": []
+    },
+    {
+        "name": "Too Many Local Variables",
+        "category": "isolated_rules",
+        "code": "def calc():\n    a=1\n    b=2\n    c=3\n    d=4\n    e=5\n    f=6\n    g=7\n    h=8\n    i=9\n    return i\n",
+        "expected_present": ["too-many-local-variables"],
+        "expected_absent": []
+    },
+    {
+        "name": "Empty Function",
+        "category": "isolated_rules",
+        "code": "def process_order(order):\n    ...\n",
+        "expected_present": ["empty-function"],
+        "expected_absent": ["unclear-function-name"]
     }
 ]

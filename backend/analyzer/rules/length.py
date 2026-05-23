@@ -60,3 +60,50 @@ class TooManyParametersRule(BaseRule):
                         )
                     )
         return findings
+
+class TooManyLocalVariablesRule(BaseRule):
+    id = "too-many-local-variables"
+    title = "Too Many Local Variables"
+    category = Category.COMPLEXITY
+    severity = Severity.INFO
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.FunctionDef):
+                locals_set = set()
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Assign):
+                        for target in child.targets:
+                            if isinstance(target, ast.Name):
+                                locals_set.add(target.id)
+                            elif isinstance(target, (ast.Tuple, ast.List)):
+                                for elt in target.elts:
+                                    if isinstance(elt, ast.Name):
+                                        locals_set.add(elt.id)
+                    elif isinstance(child, ast.AnnAssign):
+                        if isinstance(child.target, ast.Name):
+                            locals_set.add(child.target.id)
+                
+                arg_names = {a.arg for a in node.args.args + node.args.kwonlyargs}
+                if node.args.vararg: arg_names.add(node.args.vararg.arg)
+                if node.args.kwarg: arg_names.add(node.args.kwarg.arg)
+                
+                true_locals = locals_set - arg_names
+                
+                if len(true_locals) > 8:
+                    snippet = context.lines[node.lineno - 1].strip() if 0 < node.lineno <= len(context.lines) else ""
+                    findings.append(
+                        Finding(
+                            id=self.id,
+                            title=self.title,
+                            category=self.category,
+                            severity=self.severity,
+                            line_number=node.lineno,
+                            col=node.col_offset,
+                            snippet=snippet,
+                            explanation=f"This function creates {len(true_locals)} local variables. Many local variables can be a sign that a function is doing too many steps.",
+                            suggestion="Splitting the logic into smaller helper functions can make the code easier to read and test.",
+                        )
+                    )
+        return findings

@@ -18,11 +18,13 @@ const FRIENDLY_TITLES: Record<string, string> = {
   "exec-usage": "Executing dynamic code is risky",
   "broad-exception": "This except block is too broad",
   "missing-return-value": "Did you forget to return?",
-  "unused-loop-variable": "This loop variable isn't used",
   "non-snake-case-variable": "Variable names are usually snake_case",
   "constant-not-uppercase": "Constants should be UPPERCASE",
   "shadowing-builtin-name": "This name hides a built-in Python function",
-  "unclear-function-name": "This function name is too generic"
+  "unclear-function-name": "This function name is too generic",
+  "inconsistent-return": "This function might accidentally return None",
+  "too-many-local-variables": "Too many local variables",
+  "empty-function": "This function is empty"
 };
 
 export function FindingCard({ finding }: { finding: Finding }) {

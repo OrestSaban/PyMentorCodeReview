@@ -303,4 +303,35 @@ def test_unclear_function_name(analyzer):
     assert len(finding.occurrences) == 1
     assert finding.occurrences[0].value == "process"
 
+def test_too_many_local_variables(analyzer):
+    code = """def calc(a, b):
+    v1 = 1
+    v2 = 2
+    v3 = 3
+    v4 = 4
+    v5 = 5
+    v6 = 6
+    v7 = 7
+    v8 = 8
+    v9 = 9
+    return v9"""
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "too-many-local-variables")
+
+def test_inconsistent_return(analyzer):
+    code = "def foo(x):\n    if x:\n        return 1"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "inconsistent-return")
+    
+    code_good = "def foo(x):\n    if x:\n        return 1\n    return 2"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "inconsistent-return")
+
+def test_empty_function(analyzer):
+    code = "def foo():\n    pass\ndef bar():\n    ..."
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "empty-function")
+    finding = get_finding(report, "empty-function")
+    assert len(finding.occurrences) == 2
+
 
