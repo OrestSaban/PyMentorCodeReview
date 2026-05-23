@@ -1,4 +1,5 @@
-import { FileText } from 'lucide-react';
+import { useState } from 'react';
+import { FileText, ChevronDown, ChevronUp, Info, ShieldAlert } from 'lucide-react';
 import type { Finding } from '../types';
 import { SeverityBadge } from './SeverityBadge';
 
@@ -42,57 +43,106 @@ const FRIENDLY_TITLES: Record<string, string> = {
   "todo-comment": "Review TODO comment"
 };
 
-export function FindingCard({ finding }: { finding: Finding }) {
+interface FindingCardProps {
+  finding: Finding;
+  compactMode?: boolean;
+  forceCollapsed?: boolean;
+}
+
+export function FindingCard({ finding, compactMode = false, forceCollapsed = false }: FindingCardProps) {
   const hasMultipleLines = finding.line_numbers && finding.line_numbers.length > 0;
   const title = FRIENDLY_TITLES[finding.id] || finding.title;
   
+  const isImportant = finding.severity === 'error' || finding.category === 'syntax' || ['use-eval', 'exec-usage', 'subprocess-shell-true', 'hardcoded-secret', 'unsafe-yaml-load'].includes(finding.id);
+  
+  let shouldExpandDefault = !forceCollapsed && (isImportant || !compactMode);
+  if (finding.severity === 'info') {
+    shouldExpandDefault = false;
+  }
+  
+  const [expanded, setExpanded] = useState(shouldExpandDefault);
+
+  const occCount = finding.occurrences?.length || (hasMultipleLines ? finding.line_numbers!.length : (finding.line_number ? 1 : 0));
+
   return (
-    <div className={`finding-card ${finding.severity}`}>
-      <div className="finding-header">
+    <div className={`finding-card ${finding.severity} ${compactMode ? 'compact' : ''}`}>
+      <div 
+        className="finding-header" 
+        onClick={() => setExpanded(!expanded)}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+      >
         <div className="finding-title-row">
-          <div className="finding-title">{title}</div>
-          <SeverityBadge severity={finding.severity} />
+          <div className="finding-title">
+            {isImportant && <ShieldAlert size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} />}
+            {title}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <SeverityBadge severity={finding.severity} />
+            {expanded ? <ChevronUp size={20} className="text-secondary" /> : <ChevronDown size={20} className="text-secondary" />}
+          </div>
         </div>
         
-        {finding.occurrences && finding.occurrences.length > 0 ? (
-          <div className="finding-snippets-container">
-            {finding.occurrences.map((occ, idx) => (
-              <div key={idx} className="finding-snippet-row">
+        {!expanded && (
+          <div className="finding-collapsed-preview">
+            <div className="finding-preview-meta">
+              <span className="finding-id-badge">{finding.id}</span>
+              {occCount > 0 && (
+                <span className="finding-occ-badge">
+                  <FileText size={12} /> {occCount} {occCount === 1 ? 'place' : 'places'}
+                </span>
+              )}
+            </div>
+            <div className="finding-preview-suggestion">
+              <Info size={14} /> {finding.suggestion}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {expanded && (
+        <div className="finding-expanded-content">
+          <div className="finding-snippets-section">
+            {finding.occurrences && finding.occurrences.length > 0 ? (
+              <div className="finding-snippets-container">
+                {finding.occurrences.map((occ, idx) => (
+                  <div key={idx} className="finding-snippet-row">
+                    <div className="finding-lines">
+                      <FileText size={14} />
+                      Line {occ.line}{occ.col !== null ? `:${occ.col}` : ''}
+                      {occ.value && <span className="finding-value-badge">({occ.value})</span>}
+                    </div>
+                    {occ.snippet && <div className="finding-snippet-code">{occ.snippet}</div>}
+                  </div>
+                ))}
+              </div>
+            ) : (finding.line_number || hasMultipleLines) ? (
+              <div className="finding-snippet-row">
                 <div className="finding-lines">
                   <FileText size={14} />
-                  Line {occ.line}{occ.col !== null ? `:${occ.col}` : ''}
-                  {occ.value && <span className="finding-value-badge">({occ.value})</span>}
+                  {hasMultipleLines 
+                    ? `Lines ${finding.line_numbers.join(', ')}`
+                    : `Line ${finding.line_number}${finding.col !== null ? `:${finding.col}` : ''}`}
                 </div>
-                {occ.snippet && <div className="finding-snippet-code">{occ.snippet}</div>}
+                {finding.snippet && <div className="finding-snippet-code">{finding.snippet}</div>}
               </div>
-            ))}
+            ) : null}
           </div>
-        ) : (finding.line_number || hasMultipleLines) ? (
-          <div className="finding-snippet-row">
-            <div className="finding-lines">
-              <FileText size={14} />
-              {hasMultipleLines 
-                ? `Lines ${finding.line_numbers.join(', ')}`
-                : `Line ${finding.line_number}${finding.col !== null ? `:${finding.col}` : ''}`}
+          
+          <div className="finding-section">
+            <div className="finding-label">Why it matters</div>
+            <div className="finding-explanation">{finding.explanation}</div>
+          </div>
+          
+          <div className="finding-section">
+            <div className="finding-label">Try this</div>
+            <div className="finding-suggestion">{finding.suggestion}</div>
+          </div>
+          
+          {finding.example && (
+            <div className="finding-example">
+              {finding.example}
             </div>
-            {finding.snippet && <div className="finding-snippet-code">{finding.snippet}</div>}
-          </div>
-        ) : null}
-      </div>
-      
-      <div className="finding-section">
-        <div className="finding-label">Why it matters</div>
-        <div className="finding-explanation">{finding.explanation}</div>
-      </div>
-      
-      <div className="finding-section">
-        <div className="finding-label">Try this</div>
-        <div className="finding-suggestion">{finding.suggestion}</div>
-      </div>
-      
-      {finding.example && (
-        <div className="finding-example">
-          {finding.example}
+          )}
         </div>
       )}
     </div>

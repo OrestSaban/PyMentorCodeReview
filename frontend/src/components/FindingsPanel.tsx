@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { AnalysisReport, Finding, Severity } from '../types';
 import { ScoreSummary } from './ScoreSummary';
 import { CategorySection } from './CategorySection';
 import { EmptyState } from './EmptyState';
+import { FindingCard } from './FindingCard';
+import { ToggleLeft, ToggleRight, AlertTriangle } from 'lucide-react';
 
 interface FindingsPanelProps {
   report: AnalysisReport | null;
@@ -10,6 +12,26 @@ interface FindingsPanelProps {
 
 export function FindingsPanel({ report }: FindingsPanelProps) {
   const [filter, setFilter] = useState<Severity | 'all'>('all');
+  const [compactMode, setCompactMode] = useState<boolean>(() => report ? report.findings.length > 8 : false);
+
+  // Top Priorities must be defined before early return to satisfy React Rules of Hooks
+  const topPriorities = useMemo(() => {
+    if (!report || report.findings.length === 0) return [];
+    const sorted = [...report.findings].sort((a, b) => {
+      const sevWeight = { error: 3, warning: 2, info: 1 };
+      if (sevWeight[a.severity] !== sevWeight[b.severity]) {
+        return sevWeight[b.severity] - sevWeight[a.severity];
+      }
+      const catWeight = (c: string) => {
+        if (c === 'syntax' || c === 'safety') return 4;
+        if (c === 'complexity') return 3;
+        if (c === 'best_practices') return 2;
+        return 1;
+      };
+      return catWeight(b.category) - catWeight(a.category);
+    });
+    return sorted.slice(0, Math.min(4, sorted.length));
+  }, [report]);
 
   if (!report) {
     return <EmptyState />;
@@ -79,9 +101,33 @@ export function FindingsPanel({ report }: FindingsPanelProps) {
             >
               Info ({counts.info})
             </button>
+            
+            <div style={{ flex: 1 }} />
+            <button 
+              className="compact-toggle-btn" 
+              onClick={() => setCompactMode(!compactMode)}
+              title="Toggle Compact View"
+            >
+              {compactMode ? <ToggleLeft size={20} /> : <ToggleRight size={20} />}
+              <span>{compactMode ? 'Compact' : 'Detailed'}</span>
+            </button>
           </div>
 
           <div className="findings-container">
+            {filter === 'all' && topPriorities.length > 0 && (
+              <div className="top-priorities-section">
+                <div className="top-priorities-header">
+                  <AlertTriangle size={18} />
+                  Top Priorities
+                </div>
+                <div className="top-priorities-list">
+                  {topPriorities.map((finding, index) => (
+                    <FindingCard key={`priority-${finding.id}-${index}`} finding={finding} compactMode={true} forceCollapsed={true} />
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {filteredFindings.length === 0 ? (
               <div className="empty-state" style={{ padding: '2rem 1rem' }}>
                 <p style={{ color: 'var(--text-secondary)' }}>No {filter}s found in this code.</p>
@@ -92,6 +138,8 @@ export function FindingsPanel({ report }: FindingsPanelProps) {
                   key={category} 
                   category={category} 
                   findings={findingsByCategory[category]} 
+                  compactMode={compactMode}
+                  allFindingsCount={report.findings.length}
                 />
               ))
             )}
