@@ -32,8 +32,45 @@
   --success: #58cc02;
   --success-bg: #f3fbf1;
   
+  --badge-bg: #ffffff;
+  --glass-bg: rgba(255,255,255,0.6);
+  --glass-bg-strong: rgba(255,255,255,0.7);
+  
+  --card-error-border: #ffd6d6;
+  --card-warning-border: #ffe8cc;
+  --card-info-border: #fff2b3;
+  
   --font-sans: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+body.dark {
+  --bg-main: #131f24;
+  --bg-surface: #202f36;
+  --bg-code: #18252b;
+  
+  --border-light: #37464f;
+  --border-soft: #2a3942;
+  
+  --text-primary: #ffffff;
+  --text-secondary: #aebfd4;
+  --text-code: #e1e9f2;
+  
+  --error-bg: #3b1b1b;
+  --warning-bg: #3d2b15;
+  
+  --info-bg: #332d18;
+  --info-text: #ffd633;
+  
+  --success-bg: #1c331f;
+  
+  --badge-bg: #2a3942;
+  --glass-bg: rgba(0,0,0,0.2);
+  --glass-bg-strong: rgba(0,0,0,0.3);
+  
+  --card-error-border: #5c2424;
+  --card-warning-border: #5c4322;
+  --card-info-border: #52471c;
 }
 
 * {
@@ -124,10 +161,30 @@ body {
   gap: 0.5rem;
 }
 
+.editor-layout {
+  display: flex;
+  background: var(--bg-code);
+  min-height: 400px;
+}
+
+.line-numbers {
+  padding: 1.5rem 0.5rem 1.5rem 1.5rem;
+  text-align: right;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  user-select: none;
+  overflow-y: hidden;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1.7;
+  border-right: 2px solid var(--border-light);
+  min-width: 3.5rem;
+}
+
 .code-textarea {
   width: 100%;
-  min-height: 400px;
-  background: var(--bg-code);
+  flex: 1;
+  background: transparent;
   color: var(--text-code);
   font-family: var(--font-mono);
   font-size: 1rem;
@@ -136,6 +193,8 @@ body {
   border: none;
   resize: vertical;
   outline: none;
+  white-space: pre;
+  overflow-x: auto;
 }
 
 .action-area {
@@ -344,9 +403,9 @@ body {
   overflow: hidden;
 }
 
-.finding-card.error { border-color: #ffd6d6; background-color: var(--error-bg); }
-.finding-card.warning { border-color: #ffe8cc; background-color: var(--warning-bg); }
-.finding-card.info { border-color: #fff2b3; background-color: var(--info-bg); }
+.finding-card.error { border-color: var(--card-error-border); background-color: var(--error-bg); }
+.finding-card.warning { border-color: var(--card-warning-border); background-color: var(--warning-bg); }
+.finding-card.info { border-color: var(--card-info-border); background-color: var(--info-bg); }
 
 .finding-header {
   display: flex;
@@ -379,15 +438,15 @@ body {
   white-space: nowrap;
 }
 
-.severity-badge.error { background: white; color: var(--error); }
-.severity-badge.warning { background: white; color: var(--warning); }
-.severity-badge.info { background: white; color: var(--info-text); }
+.severity-badge.error { background: var(--badge-bg); color: var(--error); }
+.severity-badge.warning { background: var(--badge-bg); color: var(--warning); }
+.severity-badge.info { background: var(--badge-bg); color: var(--info-text); }
 
 .finding-lines {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   color: var(--text-secondary);
-  background: rgba(255,255,255,0.6);
+  background: var(--glass-bg);
   padding: 0.3rem 0.6rem;
   border-radius: 8px;
   display: inline-flex;
@@ -395,6 +454,38 @@ body {
   gap: 0.35rem;
   font-weight: 600;
   align-self: flex-start;
+}
+
+.finding-value-badge {
+  color: var(--text-primary);
+  opacity: 0.8;
+  margin-left: 0.2rem;
+}
+
+.finding-snippets-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.finding-snippet-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.finding-snippet-code {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  background: var(--bg-surface);
+  color: var(--text-code);
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  overflow-x: auto;
+  white-space: pre;
 }
 
 .finding-section {
@@ -418,7 +509,7 @@ body {
 }
 
 .finding-suggestion {
-  background: rgba(255,255,255,0.7);
+  background: var(--glass-bg-strong);
   padding: 1rem;
   border-radius: 16px;
   font-size: 1.05rem;
@@ -448,7 +539,7 @@ body {
 
 .error-banner {
   background: var(--error-bg);
-  border: 2px solid #ffd6d6;
+  border: 2px solid var(--card-error-border);
   color: var(--error);
   padding: 1rem 1.5rem;
   border-radius: 16px;

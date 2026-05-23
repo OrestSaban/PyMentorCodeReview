@@ -1,11 +1,20 @@
 # PyMentor Review
 
+![CI Status](https://github.com/OrestSaban/PyMentorCodeReview/actions/workflows/ci.yml/badge.svg)
+
 PyMentor Review is an educational code review assistant for beginner Python programmers. It analyzes Python code and provides beginner-friendly feedback on code quality, readability, naming, complexity, and common mistakes.
 
 ## Project Structure
 
 - `backend/`: FastAPI backend containing the AST-based code analyzer.
 - `frontend/`: React + Vite frontend providing a modern code editor interface.
+
+## Continuous Integration (CI)
+
+This project uses GitHub Actions for CI. Every push and pull request to the `main` branch triggers an automated workflow that:
+- Runs all `pytest` unit tests for the backend analyzer.
+- Runs the 25-case evaluation dataset (`run_evaluation.py`) to ensure 100% accuracy.
+- Checks the React frontend with `eslint` and attempts a production `vite build`.
 
 ## Prerequisites
 

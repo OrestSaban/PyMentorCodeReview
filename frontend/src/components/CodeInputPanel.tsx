@@ -1,4 +1,5 @@
 import { Play } from 'lucide-react';
+import { useRef } from 'react';
 
 interface CodeInputPanelProps {
   code: string;
@@ -8,19 +9,38 @@ interface CodeInputPanelProps {
 }
 
 export function CodeInputPanel({ code, setCode, onAnalyze, loading }: CodeInputPanelProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = () => {
+    if (textareaRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
+
+  const linesCount = Math.max(1, code.split('\n').length);
+  const lineNumbers = Array.from({ length: linesCount }, (_, i) => i + 1);
+
   return (
     <div className="code-panel">
       <div className="code-wrapper">
         <div className="code-header">
           <span>📝 Python Code</span>
         </div>
-        <textarea
-          className="code-textarea"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          spellCheck={false}
-          placeholder="# Paste your Python code here...&#10;&#10;def calculate_area(width, height):&#10;    return width * height"
-        />
+        <div className="editor-layout">
+          <div className="line-numbers" ref={lineNumbersRef}>
+            {lineNumbers.map(n => <div key={n}>{n}</div>)}
+          </div>
+          <textarea
+            ref={textareaRef}
+            className="code-textarea"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            onScroll={handleScroll}
+            spellCheck={false}
+            placeholder="# Paste your Python code here...&#10;&#10;def calculate_area(width, height):&#10;    return width * height"
+          />
+        </div>
       </div>
       
       <div className="action-area">

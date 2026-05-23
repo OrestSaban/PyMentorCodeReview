@@ -1,9 +1,14 @@
-import ast
 from abc import ABC, abstractmethod
 from typing import List
-from ..models import Finding
+from ..models import Finding, Category, Severity
+from ..context import AnalysisContext
 
-class Rule(ABC):
+class BaseRule(ABC):
+    id: str
+    title: str
+    category: Category
+    severity: Severity
+
     @abstractmethod
-    def analyze(self, tree: ast.AST) -> List[Finding]:
+    def check(self, context: AnalysisContext) -> List[Finding]:
         pass

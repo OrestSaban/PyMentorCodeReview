@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AlertCircle, ListChecks } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
 import type { AnalysisReport } from './types';
 
 import { AppHeader } from './components/AppHeader';
@@ -11,6 +11,30 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => {
+    const nextIsDark = !isDark;
+    setIsDark(nextIsDark);
+    if (nextIsDark) {
+      document.body.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.body.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!code.trim()) return;
@@ -42,7 +66,7 @@ function App() {
 
   return (
     <div className="app-layout">
-      <AppHeader />
+      <AppHeader isDark={isDark} toggleTheme={toggleTheme} />
 
       {error && (
         <div className="error-banner">

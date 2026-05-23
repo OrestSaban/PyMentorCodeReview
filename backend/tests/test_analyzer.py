@@ -182,3 +182,56 @@ def test_print_in_function_grouped(analyzer):
     assert_has_finding(report, "print-in-function")
     finding = get_finding(report, "print-in-function")
     assert len(finding.line_numbers) == 2
+
+def test_location_information(analyzer):
+    code = "def bad_name():\n    x = 1"
+    report = analyzer.analyze(code)
+    f_unclear = get_finding(report, "unclear-variable-name")
+    assert len(f_unclear.occurrences) == 1
+    occ = f_unclear.occurrences[0]
+    assert occ.line == 2
+    assert occ.col is not None
+    assert occ.snippet == "x = 1"
+    assert occ.value == "x"
+
+def test_syntax_error_snippet(analyzer):
+    code = "def foo(:\n    pass"
+    report = analyzer.analyze(code)
+    finding = get_finding(report, "syntax-error")
+    assert finding.snippet == "def foo(:"
+    assert finding.col is not None
+
+def test_magic_number_occurrences(analyzer):
+    code = "a = 0.25\nb = 0.25"
+    report = analyzer.analyze(code)
+    finding = get_finding(report, "magic-number")
+    assert len(finding.occurrences) == 2
+    assert finding.occurrences[0].value == "0.25"
+    assert finding.occurrences[0].snippet == "a = 0.25"
+
+def test_scoring_logic(analyzer):
+    # Base score is 100.
+    # Magic numbers (INFO) is -3.
+    # We have 3 occurrences, so base penalty (-3) + extra penalty (2 occurrences = -2) = -5
+    # Total score should be 95 ("Looks clean")
+    code = "val1 = 0.25\nval2 = 0.25\nval3 = 0.25"
+    report = analyzer.analyze(code)
+    assert report.score == 95
+    assert report.score_label == "Looks clean"
+    
+    # Let's add more severe issues
+    # Bare except (WARNING) = -8
+    # eval (ERROR) = -15
+    # Magic number (INFO) = -3
+    # Total deduction = 26
+    # Score = 74 ("Needs some improvement")
+    code2 = """
+try:
+    val1 = eval('1 + 1')
+    val2 = 0.25
+except:
+    pass
+"""
+    report2 = analyzer.analyze(code2)
+    assert report2.score == 74
+    assert report2.score_label == "Needs some improvement"

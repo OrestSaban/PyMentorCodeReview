@@ -28,14 +28,30 @@ export function FindingCard({ finding }: { finding: Finding }) {
           <SeverityBadge severity={finding.severity} />
         </div>
         
-        {(hasMultipleLines || finding.line_number) && (
-          <div className="finding-lines">
-            <FileText size={14} />
-            {hasMultipleLines 
-              ? `Lines ${finding.line_numbers.join(', ')}`
-              : `Line ${finding.line_number}`}
+        {finding.occurrences && finding.occurrences.length > 0 ? (
+          <div className="finding-snippets-container">
+            {finding.occurrences.map((occ, idx) => (
+              <div key={idx} className="finding-snippet-row">
+                <div className="finding-lines">
+                  <FileText size={14} />
+                  Line {occ.line}{occ.col !== null ? `:${occ.col}` : ''}
+                  {occ.value && <span className="finding-value-badge">({occ.value})</span>}
+                </div>
+                {occ.snippet && <div className="finding-snippet-code">{occ.snippet}</div>}
+              </div>
+            ))}
           </div>
-        )}
+        ) : (finding.line_number || hasMultipleLines) ? (
+          <div className="finding-snippet-row">
+            <div className="finding-lines">
+              <FileText size={14} />
+              {hasMultipleLines 
+                ? `Lines ${finding.line_numbers.join(', ')}`
+                : `Line ${finding.line_number}${finding.col !== null ? `:${finding.col}` : ''}`}
+            </div>
+            {finding.snippet && <div className="finding-snippet-code">{finding.snippet}</div>}
+          </div>
+        ) : null}
       </div>
       
       <div className="finding-section">
