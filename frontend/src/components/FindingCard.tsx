@@ -13,7 +13,16 @@ const FRIENDLY_TITLES: Record<string, string> = {
   "bare-except": "Careful with bare except blocks",
   "use-eval": "Careful with eval()",
   "magic-number": "This value may need a name",
-  "syntax-error": "Oops, there's a syntax error"
+  "syntax-error": "Oops, there's a syntax error",
+  "mutable-default-argument": "Watch out for mutable defaults",
+  "exec-usage": "Executing dynamic code is risky",
+  "broad-exception": "This except block is too broad",
+  "missing-return-value": "Did you forget to return?",
+  "unused-loop-variable": "This loop variable isn't used",
+  "non-snake-case-variable": "Variable names are usually snake_case",
+  "constant-not-uppercase": "Constants should be UPPERCASE",
+  "shadowing-builtin-name": "This name hides a built-in Python function",
+  "unclear-function-name": "This function name is too generic"
 };
 
 export function FindingCard({ finding }: { finding: Finding }) {

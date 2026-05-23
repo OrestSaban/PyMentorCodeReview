@@ -182,5 +182,75 @@ EVALUATION_DATASET = [
         "code": "def get_items():\n    items = [50, 100, 150]\n    for i in range(25):\n        return items[0]\n",
         "expected_present": [],
         "expected_absent": ["magic-number"]
+    },
+    {
+        "name": "Mutable Default Arguments",
+        "category": "isolated_rules",
+        "code": "def add_item(item, items=[]):\n    items.append(item)\n    return items\n",
+        "expected_present": ["mutable-default-argument"],
+        "expected_absent": []
+    },
+    {
+        "name": "Exec Usage",
+        "category": "isolated_rules",
+        "code": "def run_code(code_str):\n    exec(code_str)\n",
+        "expected_present": ["exec-usage"],
+        "expected_absent": []
+    },
+    {
+        "name": "Broad Exception",
+        "category": "isolated_rules",
+        "code": "try:\n    pass\nexcept Exception:\n    pass\n",
+        "expected_present": ["broad-exception"],
+        "expected_absent": ["bare-except"]
+    },
+    {
+        "name": "Missing Return Value",
+        "category": "isolated_rules",
+        "code": "def calculate_tax(price):\n    tax = price * 0.2\n",
+        "expected_present": ["missing-return-value"],
+        "expected_absent": []
+    },
+    {
+        "name": "Unused Loop Variable",
+        "category": "isolated_rules",
+        "code": "def print_stars():\n    for i in range(5):\n        print('*')\n",
+        "expected_present": ["unused-loop-variable"],
+        "expected_absent": []
+    },
+    {
+        "name": "New Batch Kitchen Sink",
+        "category": "mixed_beginner_mistakes",
+        "code": "def calculate_data(items=[]):\n    for idx in range(10):\n        try:\n            exec('print(items)')\n        except Exception:\n            pass\n",
+        "expected_present": ["mutable-default-argument", "exec-usage", "broad-exception", "missing-return-value", "unused-loop-variable"],
+        "expected_absent": []
+    },
+    {
+        "name": "Non Snake Case Variable",
+        "category": "isolated_rules",
+        "code": "userName = 'Alex'\ndef greet():\n    totalPrice = 100\n    return totalPrice\n",
+        "expected_present": ["non-snake-case-variable"],
+        "expected_absent": ["unclear-variable-name"]
+    },
+    {
+        "name": "Constant Not Uppercase",
+        "category": "isolated_rules",
+        "code": "max_retries = 3\ntax_rate = 0.2\nuser_name = 'Alex'\ndef calculate():\n    default_limit = 5\n    return default_limit\n",
+        "expected_present": ["constant-not-uppercase"],
+        "expected_absent": []
+    },
+    {
+        "name": "Shadowing Builtins",
+        "category": "isolated_rules",
+        "code": "list = [1, 2, 3]\ndef calculate(dict):\n    return len(dict)\n",
+        "expected_present": ["shadowing-builtin-name"],
+        "expected_absent": []
+    },
+    {
+        "name": "Unclear Function Name",
+        "category": "isolated_rules",
+        "code": "def do_it():\n    pass\ndef handle_payment():\n    pass\n",
+        "expected_present": ["unclear-function-name"],
+        "expected_absent": []
     }
 ]

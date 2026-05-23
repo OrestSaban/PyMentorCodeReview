@@ -253,6 +253,56 @@ body {
   gap: 1.5rem;
 }
 
+.findings-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.filter-btn {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-soft);
+  color: var(--text-secondary);
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+
+.filter-btn:hover {
+  background: var(--bg-code);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+.filter-btn.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+  border-color: var(--text-primary);
+}
+
+.filter-btn.error.active {
+  background: var(--error);
+  color: white;
+  border-color: var(--error);
+}
+
+.filter-btn.warning.active {
+  background: var(--warning);
+  color: white;
+  border-color: var(--warning);
+}
+
+.filter-btn.info.active {
+  background: var(--info);
+  color: white;
+  border-color: var(--info);
+}
+
 /* Empty State */
 .empty-state {
   background: var(--bg-surface);

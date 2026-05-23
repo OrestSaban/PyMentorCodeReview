@@ -261,3 +261,238 @@ class MagicNumberRule(BaseRule):
                 )
             )
         return findings
+
+class MutableDefaultArgumentRule(BaseRule):
+    id = "mutable-default-argument"
+    title = "Mutable Default Argument"
+    category = Category.BEST_PRACTICES
+    severity = Severity.WARNING
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.FunctionDef):
+                for default in node.args.defaults:
+                    is_mutable = False
+                    val_str = ""
+                    if isinstance(default, (ast.List, ast.Dict, ast.Set)):
+                        is_mutable = True
+                        if isinstance(default, ast.List): val_str = "list"
+                        elif isinstance(default, ast.Dict): val_str = "dict"
+                        elif isinstance(default, ast.Set): val_str = "set"
+                    elif isinstance(default, ast.Call) and isinstance(default.func, ast.Name):
+                        if default.func.id in {'list', 'dict', 'set'}:
+                            is_mutable = True
+                            val_str = default.func.id
+
+                    if is_mutable and hasattr(default, 'lineno'):
+                        lineno = default.lineno
+                        col = default.col_offset
+                        all_lines.add(lineno)
+                        snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                        occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet, value=val_str))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="Mutable default arguments (like lists or dictionaries) are created once when the function is defined, not each time the function is called. This can cause values to be shared unexpectedly between calls.",
+                    suggestion="Use 'None' as the default value and create the new list/dict inside the function instead.",
+                    example="def add(item, items=None):\n    if items is None:\n        items = []\n    items.append(item)  # Good"
+                )
+            )
+        return findings
+
+class UseExecRule(BaseRule):
+    id = "exec-usage"
+    title = "Avoid Using exec()"
+    category = Category.BEST_PRACTICES
+    severity = Severity.ERROR
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'exec':
+                if hasattr(node, 'lineno'):
+                    lineno = node.lineno
+                    col = node.col_offset
+                    all_lines.add(lineno)
+                    snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                    occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="The code uses the 'exec()' function. Executing dynamic code can be unsafe and hard to debug, especially if it involves user input.",
+                    suggestion="Avoid 'exec()'. Usually, there are safer and more structured ways to achieve the same result using regular Python features.",
+                )
+            )
+        return findings
+
+class BroadExceptionRule(BaseRule):
+    id = "broad-exception"
+    title = "Broad Exception Block"
+    category = Category.BEST_PRACTICES
+    severity = Severity.WARNING
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.ExceptHandler):
+                if node.type is not None and isinstance(node.type, ast.Name) and node.type.id == 'Exception':
+                    if hasattr(node, 'lineno'):
+                        lineno = node.lineno
+                        col = node.col_offset
+                        all_lines.add(lineno)
+                        snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                        occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="The code uses 'except Exception:'. While better than a bare except, this is still very broad and can hide unexpected bugs.",
+                    suggestion="Try to catch the most specific exception type possible (e.g., ValueError, FileNotFoundError) when you know what error might occur.",
+                    example="except ValueError:  # Good\nexcept Exception:  # Bad"
+                )
+            )
+        return findings
+
+class MissingReturnValueRule(BaseRule):
+    id = "missing-return-value"
+    title = "Missing Return Value"
+    category = Category.BEST_PRACTICES
+    severity = Severity.INFO
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+        
+        prefixes = ('calculate', 'compute', 'get', 'find', 'create', 'build', 'convert', 'generate')
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.FunctionDef):
+                name = node.name.lower()
+                if name.startswith(prefixes):
+                    has_return_val = False
+                    has_logic = False
+                    for child in ast.walk(node):
+                        if isinstance(child, ast.Return) and child.value is not None:
+                            has_return_val = True
+                            break
+                        if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.BinOp, ast.Call)):
+                            has_logic = True
+                            
+                    if has_logic and not has_return_val:
+                        if hasattr(node, 'lineno'):
+                            lineno = node.lineno
+                            col = node.col_offset
+                            all_lines.add(lineno)
+                            snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                            occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet, value=node.name))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="This function's name suggests it calculates or produces a value, but it doesn't return anything. If a function calculates a value, it usually should return it so other code can use it.",
+                    suggestion="Add a 'return' statement at the end of the function to give the calculated value back to the caller.",
+                    example="def calculate_total():\n    return 100  # Good"
+                )
+            )
+        return findings
+
+class UnusedLoopVariableRule(BaseRule):
+    id = "unused-loop-variable"
+    title = "Unused Loop Variable"
+    category = Category.BEST_PRACTICES
+    severity = Severity.INFO
+
+    def check(self, context: AnalysisContext) -> List[Finding]:
+        findings = []
+        occurrences = []
+        all_lines = set()
+
+        for node in ast.walk(context.tree):
+            if isinstance(node, ast.For):
+                target = node.target
+                names_to_check = []
+                if isinstance(target, ast.Name):
+                    names_to_check.append(target)
+                elif isinstance(target, (ast.Tuple, ast.List)):
+                    for elt in target.elts:
+                        if isinstance(elt, ast.Name):
+                            names_to_check.append(elt)
+                            
+                for name_node in names_to_check:
+                    var_name = name_node.id
+                    if var_name == '_':
+                        continue
+                        
+                    is_used = False
+                    for child in node.body + node.orelse:
+                        for descendant in ast.walk(child):
+                            if isinstance(descendant, ast.Name) and descendant.id == var_name and isinstance(descendant.ctx, ast.Load):
+                                is_used = True
+                                break
+                        if is_used: break
+                        
+                    if not is_used:
+                        if hasattr(node, 'lineno'):
+                            lineno = node.lineno
+                            col = node.col_offset
+                            all_lines.add(lineno)
+                            snippet = context.lines[lineno - 1].strip() if 0 < lineno <= len(context.lines) else ""
+                            occurrences.append(Occurrence(line=lineno, col=col, snippet=snippet, value=var_name))
+
+        if occurrences:
+            occurrences.sort(key=lambda o: (o.line, o.col or 0))
+            findings.append(
+                Finding(
+                    id=self.id,
+                    title=self.title,
+                    category=self.category,
+                    severity=self.severity,
+                    line_numbers=sorted(list(all_lines)),
+                    occurrences=occurrences,
+                    explanation="This loop creates a variable, but never actually uses it inside the loop. This can be confusing because it looks like the value is important.",
+                    suggestion="If the value is intentionally unused (like when you just want to repeat an action 5 times), use an underscore '_' as the variable name. Python programmers use '_' to signal 'I don't need this value'.",
+                    example="for _ in range(5):\n    print('Hello')  # Good"
+                )
+            )
+        return findings

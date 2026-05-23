@@ -235,3 +235,72 @@ except:
     report2 = analyzer.analyze(code2)
     assert report2.score == 74
     assert report2.score_label == "Needs some improvement"
+
+def test_mutable_default_argument(analyzer):
+    code = "def foo(a=[]):\n    pass\ndef bar(b=dict()):\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "mutable-default-argument")
+    finding = get_finding(report, "mutable-default-argument")
+    assert len(finding.occurrences) == 2
+
+def test_use_exec(analyzer):
+    code = "exec('x = 1')"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "exec-usage")
+
+def test_broad_exception(analyzer):
+    code = "try:\n    pass\nexcept Exception:\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "broad-exception")
+
+def test_missing_return_value(analyzer):
+    code = "def calculate_price(cost):\n    tax = cost * 0.2"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "missing-return-value")
+    
+    # Should not trigger if it has return
+    code_good = "def calculate_price(cost):\n    return cost * 1.2"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "missing-return-value")
+
+def test_unused_loop_variable(analyzer):
+    code = "for i in range(5):\n    print('hi')"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "unused-loop-variable")
+    
+    code_good = "for _ in range(5):\n    print('hi')"
+    report_good = analyzer.analyze(code_good)
+    assert_not_has_finding(report_good, "unused-loop-variable")
+
+def test_non_snake_case_variable(analyzer):
+    code = "userName = 'Alex'\nMAX_RETRIES = 3\nuser_name = 'Bob'"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "non-snake-case-variable")
+    finding = get_finding(report, "non-snake-case-variable")
+    assert len(finding.occurrences) == 1
+    assert finding.occurrences[0].value == "userName"
+
+def test_constant_not_uppercase(analyzer):
+    code = "max_retries = 3\nAPI_URL = 'http'\nuser_name = 'Alex'"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "constant-not-uppercase")
+    finding = get_finding(report, "constant-not-uppercase")
+    assert len(finding.occurrences) == 1
+    assert finding.occurrences[0].value == "max_retries"
+
+def test_shadowing_builtin_name(analyzer):
+    code = "list = [1, 2]\ndict = {}\nname = 'Alex'"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "shadowing-builtin-name")
+    finding = get_finding(report, "shadowing-builtin-name")
+    assert len(finding.occurrences) == 2
+    
+def test_unclear_function_name(analyzer):
+    code = "def process():\n    pass\ndef handle_payment():\n    pass"
+    report = analyzer.analyze(code)
+    assert_has_finding(report, "unclear-function-name")
+    finding = get_finding(report, "unclear-function-name")
+    assert len(finding.occurrences) == 1
+    assert finding.occurrences[0].value == "process"
+
+
