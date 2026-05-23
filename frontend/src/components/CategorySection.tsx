@@ -11,14 +11,13 @@ interface CategorySectionProps {
 }
 
 export function CategorySection({ category, findings, compactMode = false, allFindingsCount = 0 }: CategorySectionProps) {
-  if (findings.length === 0) return null;
-
-  const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-  
-  // Important categories open by default
   const isImportant = category === 'syntax' || category === 'safety' || category === 'complexity';
   const shouldBeOpenDefault = isImportant || allFindingsCount <= 8;
   const [isOpen, setIsOpen] = useState(shouldBeOpenDefault);
+
+  if (findings.length === 0) return null;
+
+  const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
 
   return (
     <div className="category-section">
